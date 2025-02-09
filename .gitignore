@@ -1,0 +1,17 @@
+# Игнорируем файлы базы данных и логи
+database.json
+log.txt
+
+# Игнорируем кэшированные файлы Python
+__pycache__/
+*.pyc
+
+# Игнорируем виртуальные окружения
+venv/
+env/
+
+.env
+
+
+/static/uploads/img/*
+/static/uploads/files/*

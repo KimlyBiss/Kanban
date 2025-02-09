@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная страница{% endblock %}
+
+{% block content %}
+<div class="kanban-container">
+    {% for column_id, column_name in kanban_columns.items() %}
+    <div class="column" data-column="{{ column_id }}" ondragover="allowDrop(event)" ondrop="drop(event)" ondragleave="dragLeave(event)">
+        <h4>{{ column_name }}</h4>
+        
+        {% for resume in resumes[column_id] %}
+        <a href="/resume/{{ resume.id }}" class="card" data-resume-id="{{ resume.id }}" draggable="true" ondragstart="drag(event)">
+            <div class="text_and_img">
+                <div class="photo-card">
+                    <img src="{{ resume.photo }}" alt="" draggable="false">
+                </div>
+                <div class="about_person">
+                    <h3>{{ resume.name }} <span class="gray-color">{{ resume.surname }}</span></h3>
+                    <p>{{ resume.post }}</p> 
+                </div>
+            </div>
+            <div class="skills">
+                <div class="skill skill_kanban">
+                    <p>{{ resume.experience }} лет опыта</p>
+                </div>
+                {% for skill in resume.tag %}
+                <div class="skill skill_kanban">
+                    <p>{{ skill }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="inf_hr_history">
+                <img src="/static/icons/icon.svg" alt="">
+                <p class="gray-color">{{ resume.hr_fio[1] }} {{ resume.hr_fio[2] }}</p>
+            </div>
+            <div class="inf_hr_history">
+                <img src="/static/icons/history.svg" alt="">
+                <p class="gray-color">{{ resume.creation_date }}</p>
+            </div>
+
+            <!-- Добавляем кнопку, если column_id == 6 -->
+            {% if column_id == 6 %}
+                <button class="btn" onclick="confirmProject(event, {{ resume.id }})">Вывести на проект</button>
+            {% endif %}
+
+        </a>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    function drop(event) {
+        event.preventDefault();
+        const resumeId = event.dataTransfer.getData("text");
+        const targetColumn = event.currentTarget.getAttribute("data-column");
+
+        // Убираем классы для правильной визуализации
+        const resumeCard = document.querySelector(`[data-resume-id="${resumeId}"]`);
+        if (resumeCard) {
+            resumeCard.classList.remove("dragging");
+        }
+        event.currentTarget.classList.remove("drag-over");
+        
+        // Перемещаем карточку в новую колонку
+        event.currentTarget.appendChild(resumeCard);
+
+        // Отправляем запрос на сервер для обновления данных
+        fetch("/move_resume", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                resume_id: resumeId,
+                new_column: targetColumn
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success" && data.message) {
+                // Показываем pop-up с сообщением и ссылкой
+                showPopUp(data.message, data.url); // Передаем URL в showPopUp
+            } else {
+                console.warn("Сообщение для pop-up отсутствует или статус не 'success'.");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка при перемещении резюме:", error);
+        });
+
+    }
+
+    // Обработчики событий для drag и drop
+    function allowDrop(event) {
+        event.preventDefault();
+        event.currentTarget.classList.add("drag-over");
+    }
+
+    function drag(event) {
+        event.dataTransfer.setData("text", event.target.getAttribute("data-resume-id"));
+        event.target.classList.add("dragging");
+    }
+
+    // Убираем эффект, когда карточка покидает зону перетаскивания
+    function dragLeave(event) {
+        event.currentTarget.classList.remove("drag-over");
+    }
+
+    // Добавляем события на все карточки и колонки
+    document.querySelectorAll(".card").forEach(card => {
+        card.addEventListener("dragstart", drag);
+        card.addEventListener("dragend", () => card.classList.remove("dragging"));
+    });
+
+    document.querySelectorAll(".column").forEach(column => {
+        column.addEventListener("dragover", allowDrop);
+        column.addEventListener("drop", drop);
+        column.addEventListener("dragleave", dragLeave);
+    });
+
+</script>
+{% endblock %}
